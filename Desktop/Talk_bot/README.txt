@@ -1,0 +1,1 @@
+This program uses the codeacemy's markov chain. This program shows Bot A and Bot B having the weirdest conversaion ever.  
