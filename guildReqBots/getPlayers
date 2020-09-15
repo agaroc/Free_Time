@@ -1,0 +1,160 @@
+#Caleb Ng(Agaroo)  EwieGuildBot
+#Checks to see if member meets requirments to join the guild
+import requests
+import time
+import discord
+from discord.ext import commands
+
+
+def totalSlayerXp(zombie, spider, wolf):  #calculate slayer xp
+	return (zombie + spider + wolf)
+
+def noTrueXp(skill, currentTableXp, nextTableXp, level):		#converts skill xp to level
+	skillLevel = 0						
+	skillLevel = level-1 + (1-(nextTableXp-skill) / (nextTableXp - currentTableXp))
+	return skillLevel
+
+def expToSkill(alch, farm, exp, fish, forage, combat, mining, taming):						# converts total skill xp to skill level for all skills
+	avrgSkill = 0
+	tableXp = {0: 0, 1: 50, 2: 175, 3: 375, 4: 675, 5: 1175, 6: 1925, 7: 2925, 8: 4425,
+		9: 6425, 10: 9925, 11: 14925, 12: 22425, 13: 32425, 14: 47425, 15: 67425,
+		16: 97425, 17:147425, 18: 222425, 19: 322425, 20: 522425, 21: 822425, 
+		22: 1222425, 23: 1722425, 24: 2322425, 25: 3022425, 26: 3822425, 27: 4722425, 
+		28: 5722425, 29: 6822425, 30: 8022425, 31: 9322425, 32: 10722425, 33: 12222425,
+		34: 13822425, 35: 15522425, 36:17322425, 37: 19222425, 38: 21222425, 39: 23322425,
+		40: 25522425, 41: 27822425, 42: 30222425, 43: 32722425, 44: 35322425, 
+		45: 38072425, 46: 40972425, 47: 44072425, 48: 47472245, 49: 51172245, 50: 55172245}
+	for level in tableXp:
+		if tableXp[level] > alch:
+			avrgSkill += noTrueXp(alch, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > combat:
+			avrgSkill += noTrueXp(combat, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > mining:
+			avrgSkill += noTrueXp(mining, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > forage:
+			avrgSkill += noTrueXp(forage, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > farm:
+			avrgSkill += noTrueXp(farm, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > exp:
+			avrgSkill += noTrueXp(exp, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > fish:
+			avrgSkill += noTrueXp(fish, tableXp[level-1], tableXp[level], level)
+			break
+	for level in tableXp:
+		if tableXp[level] > taming:
+			avrgSkill += noTrueXp(taming, tableXp[level-1], tableXp[level], level)
+			break
+	return avrgSkill / 8
+
+
+
+client = commands.Bot(command_prefix = '-')
+
+@client.event 
+async def on_ready():
+	print("Hello There!")
+
+@client.command()
+async def checkReqs(ctx, *, levelLimit):  #level limit will have skillAverage, Slayerxp, grinderXp stored in  a list
+	#skillLimit = input("What is the skill req? ")
+	apikey = ""  #will store user's apikey
+	await ctx.send("Processing...")
+	length = len(levelLimit)
+	limitList = levelLimit.split(" ")
+	sLimit = limitList[0]
+	slLimit = limitList[1]
+	gLimit = limitList[2]
+	counter = 0
+	kickMembers = ""
+	grinders = ""
+	time.sleep(0.5)
+	data = requests.get("https://api.hypixel.net/guild?key="+apikey+"&name=EwieNation").json()
+	memberList = data["guild"]["members"]
+	for member in memberList:
+		person = ("https://api.hypixel.net/player?key=3f5b07fb-9b97-4e3e-8a3c-65c671244cf6&uuid=" + member["uuid"])
+		currentMember = member["uuid"]
+		personProfile = requests.get(person).json()
+		try:
+			isId = personProfile["player"]["stats"]["SkyBlock"]["profiles"]														#finds the correct user in skyblock profile
+		except:
+			pass	#print("weird.." + currentMember) #key player is not accepted
+		else:
+			isId = personProfile["player"]["stats"]["SkyBlock"]["profiles"]
+		skills = []
+		xp = []
+		maxSkill = 0
+		maxXp = 0
+		for x in range(0, len(isId)):
+			try:
+				profileId = list(personProfile["player"]["stats"]["SkyBlock"]["profiles"].keys())[x]
+			except:
+				pass	#player's api is off
+			else:
+				profileId = list(personProfile["player"]["stats"]["SkyBlock"]["profiles"].keys())[x]			
+			try:
+				skillReq = requests.get("https://api.hypixel.net/skyblock/profile?key=" + apikey + "&profile=" + profileId).json()
+				alchSkill = skillReq["profile"]["members"][currentMember]["experience_skill_alchemy"]
+				farmSkill = skillReq["profile"]["members"][currentMember]["experience_skill_farming"]
+				expSkill = skillReq["profile"]["members"][currentMember]["experience_skill_enchanting"]
+				fishSkill = skillReq["profile"]["members"][currentMember]["experience_skill_fishing"]
+				forageSkill = skillReq["profile"]["members"][currentMember]["experience_skill_foraging"]
+				combatSkill = skillReq["profile"]["members"][currentMember]["experience_skill_combat"]
+				miningSkill = skillReq["profile"]["members"][currentMember]["experience_skill_mining"]
+				tamingSkill = skillReq["profile"]["members"][currentMember]["experience_skill_taming"]
+				zombieXp = skillReq["profile"]["members"][currentMember]["slayer_bosses"]["zombie"]["xp"]
+				spiderXp = skillReq["profile"]["members"][currentMember]["slayer_bosses"]["spider"]["xp"]
+				wolfXp = skillReq["profile"]["members"][currentMember]["slayer_bosses"]["wolf"]["xp"]
+			except:
+				pass #player's api is off
+			else:
+				time.sleep(0.5)
+				skillReq = requests.get("https://api.hypixel.net/skyblock/profile?key=" + apikey + "&profile=" + profileId).json()
+				alchSkill = skillReq["profile"]["members"][currentMember]["experience_skill_alchemy"]
+				farmSkill = skillReq["profile"]["members"][currentMember]["experience_skill_farming"]
+				expSkill = skillReq["profile"]["members"][currentMember]["experience_skill_enchanting"]
+				fishSkill = skillReq["profile"]["members"][currentMember]["experience_skill_fishing"]
+				forageSkill = skillReq["profile"]["members"][currentMember]["experience_skill_foraging"]
+				combatSkill = skillReq["profile"]["members"][currentMember]["experience_skill_combat"]
+				miningSkill = skillReq["profile"]["members"][currentMember]["experience_skill_mining"]				#Grabs slayer and skill xp from hypixel's api
+				tamingSkill = skillReq["profile"]["members"][currentMember]["experience_skill_taming"]
+				zombieXp = skillReq["profile"]["members"][currentMember]["slayer_bosses"]["zombie"]["xp"]
+				spiderXp = skillReq["profile"]["members"][currentMember]["slayer_bosses"]["spider"]["xp"]
+				wolfXp = skillReq["profile"]["members"][currentMember]["slayer_bosses"]["wolf"]["xp"]
+				currentSkill = expToSkill(alchSkill, farmSkill, expSkill, fishSkill, forageSkill, combatSkill, miningSkill, tamingSkill)
+				profileXp = totalSlayerXp(zombieXp, spiderXp, wolfXp)
+				skills.append(currentSkill)
+				xp.append(profileXp)
+		for skill in skills:
+			if maxSkill < skill:
+				maxSkill = skill 
+		for amount in xp:
+			if maxXp < amount:
+				maxXp = amount
+		if (maxSkill < int(sLimit) and maxSkill > 0) or (maxXp < int(slLimit) and maxXp >= 0):				#checks to see if member meets requirements 
+			kickMembers += (personProfile["player"]["displayname"] + ", ")
+			counter+=1
+		if (maxSkill > int(gLimit) and maxSkill > 0):
+			grinders += (personProfile["player"]["displayname"] + ", ")
+	if counter == 0:
+		await ctx.send("Everyone Meets the Reqs")
+	else:	
+		await ctx.send("Amount of People Being Kicked: " + str(counter))
+		await ctx.send(kickMembers)
+	await ctx.send("Grinders are: ")
+	await ctx.send(grinders)
+
+client.run(#discord token)
+
+
